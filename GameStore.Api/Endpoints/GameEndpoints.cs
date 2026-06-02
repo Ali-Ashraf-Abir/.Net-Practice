@@ -1,4 +1,6 @@
+using GameStore.Api.Data;
 using GameStore.Api.Dtos;
+using GameStore.Api.Models;
 
 namespace GameStore.Api.Endpoints;
 
@@ -21,58 +23,65 @@ public static class GameEndpoints
         var group = app.MapGroup("/games");
 
         // getting all games
-        group.MapGet("/", () => games).WithName(getGamesEndpointName);
+        group.MapGet("/", (GameStoreContext dbContext) => dbContext.Games.ToList());
 
         // getting games by id
-        group.MapGet("/{id}", (int id) =>
+        group.MapGet("/{id}", (int id, GameStoreContext dbContext) =>
         {
-            var game = games.Find(game => game.Id == id);
+            var game = dbContext.Games.Find(id);
             if (game is null)
             {
                 return Results.NotFound();
             }
             return Results.Ok(game);
-        });
+        }).WithName(getGamesEndpointName);
 
         // This endpoint is added to demonstrate how to use the Created result with a location header pointing to the newly created resource.
-        group.MapPost("/", (CreateGameDto game) =>
+        group.MapPost("/", async(CreateGameDto game, GameStoreContext dbContext) =>
         {
-            
-            GameDto newGame = new(
-              games.Count + 1,
-              game.Title,
-              game.Description,
-              game.Price,
-              game.ReleaseDate,
-              game.Genre,
-              game.Developer,
-              game.Publisher);
-            games.Add(newGame);
-            return Results.Created($"/games/{newGame.Id}", newGame);
+            Game newGame = new()
+            {
+              Title = game.Title,
+              Description = game.Description,
+              Price = game.Price,
+              ReleaseDate = game.ReleaseDate,
+              GenreId = game.GenreId,
+              Developer = game.Developer,
+              Publisher = game.Publisher
+            };
+            dbContext.Games.Add(newGame);
+            await dbContext.SaveChangesAsync();
+            return Results.CreatedAtRoute(getGamesEndpointName,new {id=newGame.Id},newGame);
         });
 
-        group.MapDelete("/{id}", (int id) =>
+        group.MapDelete("/{id}", async(int id, GameStoreContext dbContext) =>
         {
-            var game = games.FirstOrDefault(g => g.Id == id);
+            var game = dbContext.Games.Find(id);
             if (game is null)
             {
                 return Results.NotFound();
             }
-            games.Remove(game);
+            dbContext.Games.Remove(game);
+            await dbContext.SaveChangesAsync();
             return Results.NoContent();
         });
 
-        group.MapPut("/{id}", (int id, GameDto updatedGame) =>
+        group.MapPut("/{id}", async (int id, UpdateGameDto updatedGame, GameStoreContext dbContext) =>
         {
-            var game = games.FirstOrDefault(g => g.Id == id);
+            var game = dbContext.Games.Find(id);
             if (game is null)
             {
                 return Results.NotFound();
             }
-            GameDto newGame = updatedGame with { Id = id };
-            int index = games.IndexOf(game);
-            games[index] = newGame;
-            return Results.Ok(newGame);
+            game.Title = updatedGame.Title;
+            game.Description = updatedGame.Description;
+            game.Price = updatedGame.Price;
+            game.ReleaseDate = updatedGame.ReleaseDate;
+            game.GenreId = updatedGame.GenreId;
+            game.Developer = updatedGame.Developer;
+            game.Publisher = updatedGame.Publisher;
+            await dbContext.SaveChangesAsync();
+            return Results.Ok(game);
         });
     }
 

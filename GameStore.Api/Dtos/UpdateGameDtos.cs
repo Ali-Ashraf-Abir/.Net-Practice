@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace GameStore.Api.Dtos
 {
 
-    public record CreateGameDto(
+    public record UpdateGameDto(
         [Required][StringLength(50)] string Title,
         string Description,
         [Required][Range(0, 1000)] decimal Price,
