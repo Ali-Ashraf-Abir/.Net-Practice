@@ -1,11 +1,12 @@
 
 using GameStore.Api.Data;
 using GameStore.Api.Endpoints;
+using GameStore.Api.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 // Adding validation services to the service container.
 builder.Services.AddValidation();
-
+builder.Services.AddScoped<IGameRepository, GameRepository>();
 var connString = builder.Configuration.GetConnectionString("GameStore");
 // Adding the DbContext to the service container with a connection string from the configuration.
 if (connString is null)

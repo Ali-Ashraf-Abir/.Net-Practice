@@ -1,6 +1,7 @@
 using GameStore.Api.Data;
 using GameStore.Api.Dtos;
 using GameStore.Api.Models;
+using GameStore.Api.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace GameStore.Api.Endpoints;
@@ -15,7 +16,6 @@ public static class GameEndpoints
 
         // grouping all endpoints
         var group = app.MapGroup("/games");
-
         // getting all games
         group.MapGet("/", async (
         string? title,
@@ -23,54 +23,19 @@ public static class GameEndpoints
         int? page,
         int? pageSize,
         string? sortBy,
-        GameStoreContext dbContext) =>
+        IGameRepository repo
+       ) =>
 
         {
-            var query = dbContext.Games.Include(g => g.Genre).AsQueryable();
-            if (!string.IsNullOrWhiteSpace(title))
-            {
-
-                query = query.Where(g => g.Title.ToLower().Contains(title));
-            }
-            if (genreId.HasValue)
-            {
-                query = query.Where(g => g.GenreId == genreId.Value);
-            }
-
-
-
-
-            if (!string.IsNullOrWhiteSpace(sortBy))
-            {
-                query = sortBy.ToLower() switch
-                {
-                    "title" => query.OrderBy(g => g.Title),
-                    "releasedate" => query.OrderBy(g => g.ReleaseDate),
-                    "price" => query.OrderBy(g => g.Price),
-                    _ => query
-                };
-            }
-            var totalCount = await query.CountAsync();
-            var totalPages = (int)Math.Ceiling(totalCount / (double)(pageSize ?? 10));
-
-            if (page.HasValue && pageSize.HasValue)
-            {
-                query = query.Skip((page.Value - 1) * pageSize.Value).Take(pageSize.Value);
-            }
-            var games = await query.ToListAsync();
-            return Results.Ok(new
-            {
-                TotalCount = totalCount,
-                TotalPages = totalPages,
-                Games = games
-            });
+            var result = await repo.GetGamesAsync(title, genreId, page, pageSize, sortBy);
+            return Results.Ok(result);
         }
         );
 
         // getting games by id
-        group.MapGet("/{id}", async (int id, GameStoreContext dbContext) =>
+        group.MapGet("/{id}", async (int id, IGameRepository repo) =>
         {
-            var game = await dbContext.Games.FindAsync(id);
+            var game = await repo.GetGameByIdAsync(id);
             if (game is null)
             {
                 return Results.NotFound();
@@ -79,7 +44,7 @@ public static class GameEndpoints
         }).WithName(getGamesEndpointName);
 
         // This endpoint is added to demonstrate how to use the Created result with a location header pointing to the newly created resource.
-        group.MapPost("/", async (CreateGameDto game, GameStoreContext dbContext) =>
+        group.MapPost("/", async (CreateGameDto game, IGameRepository repo) =>
         {
             Game newGame = new()
             {
@@ -91,26 +56,24 @@ public static class GameEndpoints
                 Developer = game.Developer,
                 Publisher = game.Publisher
             };
-            dbContext.Games.Add(newGame);
-            await dbContext.SaveChangesAsync();
+            await repo.CreateGameAsync(newGame);
             return Results.CreatedAtRoute(getGamesEndpointName, new { id = newGame.Id }, newGame);
         });
 
-        group.MapDelete("/{id}", async (int id, GameStoreContext dbContext) =>
+        group.MapDelete("/{id}", async (int id, IGameRepository repo) =>
         {
-            var game = dbContext.Games.Find(id);
+            var game = await repo.GetGameByIdAsync(id);
             if (game is null)
             {
                 return Results.NotFound();
             }
-            dbContext.Games.Remove(game);
-            await dbContext.SaveChangesAsync();
+            await repo.DeleteGameAsync(id);
             return Results.NoContent();
         });
 
-        group.MapPut("/{id}", async (int id, UpdateGameDto updatedGame, GameStoreContext dbContext) =>
+        group.MapPut("/{id}", async (int id, UpdateGameDto updatedGame, IGameRepository repo) =>
         {
-            var game = dbContext.Games.Find(id);
+            var game = await repo.GetGameByIdAsync(id);
             if (game is null)
             {
                 return Results.NotFound();
@@ -122,7 +85,7 @@ public static class GameEndpoints
             game.GenreId = updatedGame.GenreId;
             game.Developer = updatedGame.Developer;
             game.Publisher = updatedGame.Publisher;
-            await dbContext.SaveChangesAsync();
+            await repo.UpdateGameAsync(game);
             return Results.Ok(game);
         });
     }
