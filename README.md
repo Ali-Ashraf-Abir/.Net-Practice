@@ -52,6 +52,9 @@ A RESTful Web API built with **ASP.NET Core (.NET 9)** for managing a game catal
 ## Migrations and Database Seeding
 - Did proper database migrations, automatic database migrations on startup and database seeding
 ---
+
+## Learning about asynchronous programming models
+- Learned how to do asynchronous programming in C# and .NET
 ## Next Steps
 
 - [ done ] **Entity Framework Core** with SQLite
