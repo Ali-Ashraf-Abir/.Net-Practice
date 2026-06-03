@@ -7,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Adding validation services to the service container.
 builder.Services.AddValidation();
 builder.Services.AddScoped<IGameRepository, GameRepository>();
+builder.Services.AddScoped<IGenreRepository, GenreRepository>();
 var connString = builder.Configuration.GetConnectionString("GameStore");
 // Adding the DbContext to the service container with a connection string from the configuration.
 if (connString is null)
@@ -19,5 +20,5 @@ var app = builder.Build();
 app.MigrateDb();
 
 app.MapGamesEndpoints();
-
+app.MapGenreEndpoints();
 app.Run();
